@@ -1,10 +1,61 @@
 import tkinter as tk
 from tkinter import messagebox
 from cryptography.fernet import Fernet
+import firebase_admin
+from firebase_admin import credentials, db
+import time
+import threading
 
-# Clave de cifrado compartida (asegúrate de mantener esta clave segura y privada)
-key = b'VbvCKhovxpPeXhII2M43hhzLPWJByi5K4aQFjRzXPsg='
-cipher_suite = Fernet(key)
+
+cred = credentials.Certificate("./FireBaseConection.json")
+firebase_admin.initialize_app(cred, {
+    'databaseURL': 'https://message-4383b-default-rtdb.europe-west1.firebasedatabase.app/'
+})
+
+# Variable global para almacenar la clave de encriptación
+cipher_suite = None
+
+# Función para mostrar solo los últimos 4 caracteres de la clave
+def update_key_display(new_key):
+    entry_key.config(state=tk.NORMAL)
+    entry_key.delete(1.0, tk.END)
+    partial_key = "*************" + new_key[-8:]  # Mostrar solo los últimos 4 caracteres
+    entry_key.insert(tk.END, partial_key)
+    entry_key.config(state=tk.DISABLED)
+
+
+# Función para generar una nueva clave manualmente y actualizar el campo
+def manual_generate_key():
+    new_key = Fernet.generate_key().decode()
+    ref = db.reference('encryption_key')
+    ref.set({'key': new_key})
+    update_key_display(new_key)
+    messagebox.showinfo("Nueva Key", "Se ha generado una nueva clave de encriptación.")
+
+# Función para escuchar cambios en la clave de encriptación en Firebase
+def key_listener(event):
+    global cipher_suite
+    new_key = event.data  # Obtener la nueva clave
+    if new_key:
+        print(f"New key received: {new_key}")
+        # Actualizar el cifrador con la nueva clave
+        cipher_suite = Fernet(new_key.encode())
+
+# Función para configurar el listener para cambios en la clave
+def setup_key_listener():
+    ref = db.reference('encryption_key/key')  # Referencia al nodo 'key'
+    ref.listen(key_listener)
+
+
+# Función para obtener la clave de encriptación desde Firebase
+def get_encryption_key():
+    ref = db.reference('encryption_key')  # Referencia al nodo 'encryption_key'
+    key_data = ref.get()  # Obtener los datos del nodo
+    key_str = key_data['key']  # Obtener la cadena sin el prefijo b'
+    # Convertir la cadena a bytes agregando el prefijo b''
+    key_bytes = key_str.encode('utf-8')  # Convertir la cadena a bytes
+    entry_key = key_bytes
+    return key_bytes
 
 # Función para encriptar el mensaje
 def encrypt_message():
@@ -38,8 +89,7 @@ def copy_to_clipboard():
     result_text = entry_result.get("1.0", tk.END).strip()
     if result_text:
         root.clipboard_clear()
-        root.clipboard_append(result_text)
-        messagebox.showinfo("Copiado", "El resultado ha sido copiado al portapapeles.")
+        root.clipboard_append(result_text)    
     else:
         messagebox.showwarning("Error", "No hay resultado para copiar.")
 
@@ -86,5 +136,25 @@ btn_copy.grid(row=3, column=0, columnspan=2, padx=10, pady=10, ipadx=50)
 btn_clear = tk.Button(root, text="Borrar", command=clear_text)
 btn_clear.grid(row=4, column=0, columnspan=2, padx=10, pady=10, ipadx=50)
 
-# Ejecutar la interfaz gráfica
+# Añadir debajo de copiar y borrar un campo para mostrar la key actual y un botón para generar una nueva
+label_key = tk.Label(root, text="Clave actual:")
+label_key.grid(row=5, column=0, padx=10, pady=10)
+
+entry_key = tk.Text(root, height=1, width=50)
+entry_key.grid(row=5, column=1, padx=10, pady=10)
+entry_key.config(state=tk.DISABLED)
+
+# Botón para generar una nueva key manualmente
+btn_generate_key = tk.Button(root, text="Generar nueva key", command=manual_generate_key)
+btn_generate_key.grid(row=6, column=0, columnspan=2, padx=10, pady=10, ipadx=50)
+
+
+# Iniciar el listener en segundo plano
+threading.Thread(target=setup_key_listener, daemon=True).start()
+# Aplicar la clave de encriptación
+key = get_encryption_key()
+cipher_suite = Fernet(key)
+key = key.decode('utf-8')
+update_key_display(key)
+
 root.mainloop()

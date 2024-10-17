@@ -105,19 +105,21 @@ def clear_text():
 root = tk.Tk()
 root.title("Encriptador de Mensajes")
 
+root.grid_columnconfigure(1, weight=1)
+
 # Etiqueta y caja de texto para el mensaje (editable)
 label_message = tk.Label(root, text="Mensaje:")
-label_message.grid(row=0, column=0, padx=10, pady=10)
+label_message.grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
-entry_message = tk.Text(root, height=5, width=50)
-entry_message.grid(row=0, column=1, padx=10, pady=10)
+entry_message = tk.Text(root, height=5, width=50, wrap="word")
+entry_message.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
 # Etiqueta y caja de texto para el resultado (no editable)
 label_result = tk.Label(root, text="Resultado:")
-label_result.grid(row=2, column=0, padx=10, pady=10)
+label_result.grid(row=2, column=0, padx=10, pady=10, sticky="w")
 
-entry_result = tk.Text(root, height=5, width=50)
-entry_result.grid(row=2, column=1, padx=10, pady=10)
+entry_result = tk.Text(root, height=5, width=50,wrap="word")
+entry_result.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
 entry_result.config(state=tk.DISABLED)
 
 # Frame para centrar los botones de encriptar y desencriptar

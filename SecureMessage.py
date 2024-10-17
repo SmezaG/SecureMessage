@@ -29,7 +29,7 @@ def manual_generate_key():
     new_key = Fernet.generate_key().decode()
     ref = db.reference('encryption_key')
     ref.set({'key': new_key})
-    update_key_display(new_key)
+    # update_key_display(new_key)
     messagebox.showinfo("Nueva Key", "Se ha generado una nueva clave de encriptación.")
 
 # Función para escuchar cambios en la clave de encriptación en Firebase
@@ -40,6 +40,7 @@ def key_listener(event):
         print(f"New key received: {new_key}")
         # Actualizar el cifrador con la nueva clave
         cipher_suite = Fernet(new_key.encode())
+        update_key_display(new_key)
 
 # Función para configurar el listener para cambios en la clave
 def setup_key_listener():
@@ -154,7 +155,6 @@ threading.Thread(target=setup_key_listener, daemon=True).start()
 # Aplicar la clave de encriptación
 key = get_encryption_key()
 cipher_suite = Fernet(key)
-key = key.decode('utf-8')
-update_key_display(key)
+update_key_display(key.decode('utf-8'))
 
 root.mainloop()

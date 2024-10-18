@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox,simpledialog
 from cryptography.fernet import Fernet
 import firebase_admin
 from firebase_admin import credentials, db
@@ -26,11 +26,21 @@ def update_key_display(new_key):
 
 # Función para generar una nueva clave manualmente y actualizar el campo
 def manual_generate_key():
-    new_key = Fernet.generate_key().decode()
-    ref = db.reference('encryption_key')
-    ref.set({'key': new_key})
-    # update_key_display(new_key)
-    messagebox.showinfo("Nueva Key", "Se ha generado una nueva clave de encriptación.")
+   # Abrir un diálogo para pedir la contraseña
+    input_password = simpledialog.askstring("Contraseña", "Introduce la contraseña:", show="*")
+    if input_password:  # Si se ha introducido una contraseña
+        ref = db.reference('encryption_data/password')
+        stored_password = ref.get()  # Obtener la contraseña almacenada en Firebase
+        if stored_password == input_password:
+            new_key = Fernet.generate_key().decode()
+            ref = db.reference('encryption_key')
+            ref.set({'key': new_key})
+            # update_key_display(new_key)
+            messagebox.showinfo("Nueva Key", "Se ha generado una nueva clave de encriptación.")
+        else:
+            messagebox.showerror("Error", "Contraseña incorrecta. No se generó la clave.")
+    else:
+        messagebox.showwarning("Advertencia", "No se ha introducido ninguna contraseña. Operación cancelada.")
 
 # Función para escuchar cambios en la clave de encriptación en Firebase
 def key_listener(event):
@@ -101,6 +111,25 @@ def clear_text():
     entry_result.delete(1.0, tk.END)
     entry_result.config(state=tk.DISABLED)
 
+# Funciones para los comandos del menú
+def administraon():
+    input_password = simpledialog.askstring("Contraseña", "Introduce la contraseña:", show="*")
+    if input_password:  # Si se ha introducido una contraseña
+        ref = db.reference('encryption_data/password')
+        stored_password = ref.get()  # Obtener la contraseña almacenada en Firebase
+        if stored_password == input_password:
+            new_password = simpledialog.askstring("Nueva Contraseña", "Introduce la nueva contraseña:", show="*")
+            if new_password:
+                ref = db.reference('encryption_data')
+                ref.update({'password': new_password})
+                messagebox.showinfo("Nueva contraseña", "Se ha generado una nueva contraseña.")
+            else:           
+                messagebox.showinfo("Error Nueva contraseña", "No se ha introducido una nueva contraseña.")
+        else:
+            messagebox.showerror("Error", "Contraseña incorrecta. No se generó la nueva contraseña.")
+    else:
+        messagebox.showinfo("Error", "No se ha introducido la contraseña")
+
 # Configuración de la interfaz gráfica
 root = tk.Tk()
 root.title("Encriptador de Mensajes")
@@ -151,9 +180,21 @@ entry_key.config(state=tk.DISABLED)
 btn_generate_key = tk.Button(root, text="Generar nueva key", command=manual_generate_key)
 btn_generate_key.grid(row=6, column=0, columnspan=2, padx=10, pady=10, ipadx=50)
 
+# Crear la barra de menú
+menu_bar = tk.Menu(root)
+
+# Crear el menú 'Archivo' y añadirlo a la barra de menús
+file_menu = tk.Menu(menu_bar, tearoff=0) 
+file_menu.add_command(label="Cambiar contraseña", command=administraon)
+menu_bar.add_cascade(label="Archivo", menu=file_menu)
+
+# Configurar la barra de menú en la ventana principal
+root.config(menu=menu_bar)
+
 
 # Iniciar el listener en segundo plano
 threading.Thread(target=setup_key_listener, daemon=True).start()
+
 # Aplicar la clave de encriptación
 key = get_encryption_key()
 cipher_suite = Fernet(key)
